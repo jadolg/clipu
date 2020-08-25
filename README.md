@@ -13,8 +13,11 @@ Do not use it if you don't trust the network you are connected to!
 ## Configuration
 
 Set `CLIPU_PASSWORD` to the same value on every device you want to use.
+
 Set `CLIPU_PEER_LIMIT` if you want more than 1 other station (default: 1)
+
 With CLIPU_PEER_LIMIT=1 you can connect 2 devices. 
+
 The higher this number, the longer it takes to discover devices.
 
 ## Why?
