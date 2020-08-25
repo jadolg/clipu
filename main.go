@@ -41,21 +41,21 @@ func captureClipboard(clipboardContents chan<- string) {
 
 func startDiscovery() {
 	for {
-		log.Info("started peer discovery")
+		log.Debug("started peer discovery")
 		discoveries, _ := peerdiscovery.Discover(peerdiscovery.Settings{Limit: peerLimit, Port: peerDiscoveryPort})
 
 		newPeers := make([]string, 0)
 		for _, d := range discoveries {
 			if authorized(d.Address) {
 				newPeers = append(newPeers, d.Address)
-				log.Infof("discovered '%s'", d.Address)
+				log.Debug("discovered '%s'", d.Address)
 			}
 		}
 
 		mutex.Lock()
 		peers = newPeers
 		mutex.Unlock()
-		log.Info("finished peer discovery")
+		log.Debug("finished peer discovery")
 		time.Sleep(5 * time.Second)
 	}
 }
@@ -126,6 +126,14 @@ func sendText(text string, peer string) error {
 		return fmt.Errorf("peer has returned an invalid code %d", res.StatusCode)
 	}
 	return nil
+}
+
+func init() {
+	text, err := clipboard.ReadAll()
+	if err != nil {
+		log.WithError(err).Fatal("can't read clipboard content")
+	}
+	lastReceived = text
 }
 
 func main() {
