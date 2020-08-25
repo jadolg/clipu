@@ -99,6 +99,10 @@ func ack(w http.ResponseWriter, r *http.Request) {
 func authorized(peer string) bool {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s:%d/ack", peer, serverPort), nil)
+	if err != nil {
+		log.WithError(err).Errorf("could not create request to ask for authorization")
+		return false
+	}
 	req.SetBasicAuth(username, password)
 	res, err := client.Do(req)
 	if err != nil {
@@ -120,6 +124,9 @@ func startServer() {
 func sendText(text string, peer string) error {
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d/receive", peer, serverPort), strings.NewReader(text))
+	if err != nil {
+		return err
+	}
 	req.SetBasicAuth(username, password)
 	res, err := client.Do(req)
 	if err != nil {
