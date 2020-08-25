@@ -43,40 +43,32 @@ func startDiscovery() {
 	for {
 		log.Info("started peer discovery")
 		discoveries, _ := peerdiscovery.Discover(peerdiscovery.Settings{Limit: peerLimit, Port: peerDiscoveryPort})
-		mutex.Lock()
-		peers = make([]string, 0)
+
+		newPeers := make([]string, 0)
 		for _, d := range discoveries {
-			peers = append(peers, d.Address)
+			if authorized(d.Address) {
+				newPeers = append(peers, d.Address)
+			}
 			log.Infof("discovered '%s'", d.Address)
 		}
+
+		mutex.Lock()
+		peers = newPeers
 		mutex.Unlock()
 		log.Info("finished peer discovery")
 		time.Sleep(5 * time.Second)
 	}
 }
 
-// BasicAuth wraps a handler requiring HTTP basic auth for it using the given
-// username and password and the specified realm, which shouldn't contain quotes.
-//
-// Most web browser display a dialog with something like:
-//
-//    The website says: "<realm>"
-//
-// Which is really stupid so you may want to set the realm to a message rather than
-// an actual realm.
-func BasicAuth(handler http.HandlerFunc, username, password, realm string) http.HandlerFunc {
-
+func basicAuth(handler http.HandlerFunc, username, password, realm string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		user, pass, ok := r.BasicAuth()
-
 		if !ok || subtle.ConstantTimeCompare([]byte(user), []byte(username)) != 1 || subtle.ConstantTimeCompare([]byte(pass), []byte(password)) != 1 {
 			w.Header().Set("WWW-Authenticate", `Basic realm="`+realm+`"`)
 			w.WriteHeader(401)
 			w.Write([]byte("Unauthorised.\n"))
 			return
 		}
-
 		handler(w, r)
 	}
 }
@@ -86,6 +78,7 @@ func receive(w http.ResponseWriter, r *http.Request) {
 	data, _ := ioutil.ReadAll(r.Body)
 	text := fmt.Sprintf("%s", data)
 	if text != "" {
+		log.Infof("received %s", text)
 		err := clipboard.WriteAll(text)
 		lastReceived = text
 		if err != nil {
@@ -100,9 +93,24 @@ func ack(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "ok\n")
 }
 
+func authorized(peer string) bool {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s:%d/ack", peer, serverPort), nil)
+	req.SetBasicAuth(username, password)
+	res, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	if res.StatusCode != http.StatusOK {
+		return false
+	}
+
+	return true
+}
+
 func startServer() {
-	http.HandleFunc("/receive", BasicAuth(receive, username, password, ""))
-	http.HandleFunc("/ack", BasicAuth(ack, username, password, ""))
+	http.HandleFunc("/receive", basicAuth(receive, username, password, ""))
+	http.HandleFunc("/ack", basicAuth(ack, username, password, ""))
 	http.ListenAndServe(fmt.Sprintf(":%d", serverPort), nil)
 }
 
