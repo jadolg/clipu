@@ -70,7 +70,7 @@ func startServer() {
 }
 
 func sendText(text string, peer string) error {
-	res, err := http.Post(fmt.Sprintf("http://peer:%d/receive", serverPort), "text/plain", strings.NewReader(text))
+	res, err := http.Post(fmt.Sprintf("http://%s:%d/receive", peer, serverPort), "text/plain", strings.NewReader(text))
 	if err != nil {
 		return err
 	}
