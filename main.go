@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"fmt"
 	"github.com/atotto/clipboard"
 	"github.com/schollz/peerdiscovery"
@@ -15,6 +16,8 @@ import (
 const peerLimit = 1
 const peerDiscoveryPort = "30561"
 const serverPort = 30562
+const username = "wKZBwl"
+const password = "X99Z6btW5BpgmysDu7TwKZBwlswzdf2JksRA57D6hbE"
 
 var peers = make([]string, 0)
 var mutex = &sync.Mutex{}
@@ -51,6 +54,32 @@ func startDiscovery() {
 	}
 }
 
+// BasicAuth wraps a handler requiring HTTP basic auth for it using the given
+// username and password and the specified realm, which shouldn't contain quotes.
+//
+// Most web browser display a dialog with something like:
+//
+//    The website says: "<realm>"
+//
+// Which is really stupid so you may want to set the realm to a message rather than
+// an actual realm.
+func BasicAuth(handler http.HandlerFunc, username, password, realm string) http.HandlerFunc {
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		user, pass, ok := r.BasicAuth()
+
+		if !ok || subtle.ConstantTimeCompare([]byte(user), []byte(username)) != 1 || subtle.ConstantTimeCompare([]byte(pass), []byte(password)) != 1 {
+			w.Header().Set("WWW-Authenticate", `Basic realm="`+realm+`"`)
+			w.WriteHeader(401)
+			w.Write([]byte("Unauthorised.\n"))
+			return
+		}
+
+		handler(w, r)
+	}
+}
+
 func receive(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	data, _ := ioutil.ReadAll(r.Body)
@@ -64,13 +93,22 @@ func receive(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "received: '%s'\n", text)
 }
 
+func ack(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	fmt.Fprintf(w, "ok\n")
+}
+
 func startServer() {
-	http.HandleFunc("/receive", receive)
+	http.HandleFunc("/receive", BasicAuth(receive, username, password, ""))
+	http.HandleFunc("/ack", BasicAuth(ack, username, password, ""))
 	http.ListenAndServe(fmt.Sprintf(":%d", serverPort), nil)
 }
 
 func sendText(text string, peer string) error {
-	res, err := http.Post(fmt.Sprintf("http://%s:%d/receive", peer, serverPort), "text/plain", strings.NewReader(text))
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d/receive", peer, serverPort), strings.NewReader(text))
+	req.SetBasicAuth(username, password)
+	res, err := client.Do(req)
 	if err != nil {
 		return err
 	}
