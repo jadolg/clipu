@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -68,6 +69,17 @@ func startServer() {
 	http.ListenAndServe(fmt.Sprintf(":%d", serverPort), nil)
 }
 
+func sendText(text string, peer string) error {
+	res, err := http.Post(fmt.Sprintf("http://peer:%d/receive", serverPort), "text/plain", strings.NewReader(text))
+	if err != nil {
+		return err
+	}
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("peer has returned an invalid code %d", res.StatusCode)
+	}
+	return nil
+}
+
 func main() {
 	clipboardContent := make(chan string)
 	go captureClipboard(clipboardContent)
@@ -78,6 +90,10 @@ func main() {
 		for _, peer := range peers {
 			mutex.Lock()
 			log.Infof("sending %s to peer %s", value, peer)
+			err := sendText(value, peer)
+			if err != nil {
+				log.WithError(err).Errorf("an error has occurred while sending text %s to %s", value, peer)
+			}
 			mutex.Unlock()
 		}
 	}
