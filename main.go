@@ -48,8 +48,8 @@ func startDiscovery() {
 		for _, d := range discoveries {
 			if authorized(d.Address) {
 				newPeers = append(peers, d.Address)
+				log.Infof("discovered '%s'", d.Address)
 			}
-			log.Infof("discovered '%s'", d.Address)
 		}
 
 		mutex.Lock()
