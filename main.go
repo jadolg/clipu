@@ -4,8 +4,14 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/schollz/peerdiscovery"
 	log "github.com/sirupsen/logrus"
+	"sync"
 	"time"
 )
+
+const peerLimit = 1
+
+var peers = make([]string, 0)
+var mutex = &sync.Mutex{}
 
 func captureClipboard(clipboardContents chan<- string) {
 	previousContent := ""
@@ -23,15 +29,32 @@ func captureClipboard(clipboardContents chan<- string) {
 	}
 }
 
+func startDiscovery() {
+	for {
+		log.Info("started peer discovery")
+		discoveries, _ := peerdiscovery.Discover(peerdiscovery.Settings{Limit: peerLimit})
+		mutex.Lock()
+		peers = make([]string, 0)
+		for _, d := range discoveries {
+			peers = append(peers, d.Address)
+			log.Infof("discovered '%s'\n", d.Address)
+		}
+		mutex.Unlock()
+		log.Info("started peer discovery")
+		time.Sleep(5 * time.Second)
+	}
+}
+
 func main() {
 	clipboardContent := make(chan string)
 	go captureClipboard(clipboardContent)
+	go startDiscovery()
 
 	for value := range clipboardContent {
-		discoveries, _ := peerdiscovery.Discover(peerdiscovery.Settings{Limit: 1})
-		for _, d := range discoveries {
-			log.Infof("discovered '%s'\n", d.Address)
-			log.Infof("sending %s", value)
+		for _, peer := range peers {
+			mutex.Lock()
+			log.Infof("sending %s to peer %s", value, peer)
+			mutex.Unlock()
 		}
 	}
 }
