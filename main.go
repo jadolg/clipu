@@ -111,7 +111,7 @@ func authorized(peer string) bool {
 	if res.StatusCode != http.StatusOK {
 		return false
 	}
-
+	log.Infof("peer %s responded positively to authorization inquiry", peer)
 	return true
 }
 
