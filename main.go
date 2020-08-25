@@ -8,16 +8,19 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 )
 
-const peerLimit = 1
 const peerDiscoveryPort = "30561"
 const serverPort = 30562
-const username = "wKZBwl"
-const password = "X99Z6btW5BpgmysDu7TwKZBwlswzdf2JksRA57D6hbE"
+const username = "clipu"
+
+var password = ""
+var peerLimit = 1
 
 var peers = make([]string, 0)
 var mutex = &sync.Mutex{}
@@ -134,6 +137,20 @@ func init() {
 		log.WithError(err).Fatal("can't read clipboard content")
 	}
 	lastReceived = text
+
+	password = os.Getenv("CLIPU_PASSWORD")
+	if password == "" {
+		log.Fatal("running on empty password! Set CLIPU_PASSWORD to start.")
+	}
+	peerLimitStr, found := os.LookupEnv("CLIPU_PEER_LIMIT")
+	if found {
+		peerLimitInt, err := strconv.Atoi(peerLimitStr)
+		if err != nil {
+			log.WithError(err).Errorf("Can't parse peer limit from %s", peerLimitStr)
+		} else {
+			peerLimit = peerLimitInt
+		}
+	}
 }
 
 func main() {
