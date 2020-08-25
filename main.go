@@ -47,7 +47,7 @@ func startDiscovery() {
 		newPeers := make([]string, 0)
 		for _, d := range discoveries {
 			if authorized(d.Address) {
-				newPeers = append(peers, d.Address)
+				newPeers = append(newPeers, d.Address)
 				log.Infof("discovered '%s'", d.Address)
 			}
 		}
