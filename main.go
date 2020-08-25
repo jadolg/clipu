@@ -1,15 +1,19 @@
 package main
 
 import (
+	"fmt"
 	"github.com/atotto/clipboard"
 	"github.com/schollz/peerdiscovery"
 	log "github.com/sirupsen/logrus"
+	"io/ioutil"
+	"net/http"
 	"sync"
 	"time"
 )
 
 const peerLimit = 1
 const peerDiscoveryPort = "30561"
+const serverPort = 30562
 
 var peers = make([]string, 0)
 var mutex = &sync.Mutex{}
@@ -46,10 +50,29 @@ func startDiscovery() {
 	}
 }
 
+func receive(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	data, _ := ioutil.ReadAll(r.Body)
+	text := fmt.Sprintf("%s", data)
+	if text != "" {
+		err := clipboard.WriteAll(text)
+		if err != nil {
+			log.WithError(err).Fatal("can't write into clipboard")
+		}
+	}
+	fmt.Fprintf(w, "received: '%s'\n", text)
+}
+
+func startServer() {
+	http.HandleFunc("/receive", receive)
+	http.ListenAndServe(fmt.Sprintf(":%d", serverPort), nil)
+}
+
 func main() {
 	clipboardContent := make(chan string)
 	go captureClipboard(clipboardContent)
 	go startDiscovery()
+	go startServer()
 
 	for value := range clipboardContent {
 		for _, peer := range peers {
