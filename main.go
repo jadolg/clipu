@@ -9,6 +9,7 @@ import (
 )
 
 const peerLimit = 1
+const peerDiscoveryPort = "30561"
 
 var peers = make([]string, 0)
 var mutex = &sync.Mutex{}
@@ -32,15 +33,15 @@ func captureClipboard(clipboardContents chan<- string) {
 func startDiscovery() {
 	for {
 		log.Info("started peer discovery")
-		discoveries, _ := peerdiscovery.Discover(peerdiscovery.Settings{Limit: peerLimit})
+		discoveries, _ := peerdiscovery.Discover(peerdiscovery.Settings{Limit: peerLimit, Port: peerDiscoveryPort})
 		mutex.Lock()
 		peers = make([]string, 0)
 		for _, d := range discoveries {
 			peers = append(peers, d.Address)
-			log.Infof("discovered '%s'\n", d.Address)
+			log.Infof("discovered '%s'", d.Address)
 		}
 		mutex.Unlock()
-		log.Info("started peer discovery")
+		log.Info("finished peer discovery")
 		time.Sleep(5 * time.Second)
 	}
 }
