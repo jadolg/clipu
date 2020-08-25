@@ -21,6 +21,7 @@ const password = "X99Z6btW5BpgmysDu7TwKZBwlswzdf2JksRA57D6hbE"
 
 var peers = make([]string, 0)
 var mutex = &sync.Mutex{}
+var lastReceived = ""
 
 func captureClipboard(clipboardContents chan<- string) {
 	previousContent := ""
@@ -29,7 +30,7 @@ func captureClipboard(clipboardContents chan<- string) {
 		if err != nil {
 			log.WithError(err).Fatal("can't read clipboard content")
 		}
-		if previousContent != currentContent {
+		if previousContent != currentContent && lastReceived != currentContent {
 			log.Infof("got text '%s'", currentContent)
 			previousContent = currentContent
 			clipboardContents <- currentContent
@@ -86,6 +87,7 @@ func receive(w http.ResponseWriter, r *http.Request) {
 	text := fmt.Sprintf("%s", data)
 	if text != "" {
 		err := clipboard.WriteAll(text)
+		lastReceived = text
 		if err != nil {
 			log.WithError(err).Fatal("can't write into clipboard")
 		}
