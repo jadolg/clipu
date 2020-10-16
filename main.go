@@ -3,9 +3,6 @@ package main
 import (
 	"crypto/subtle"
 	"fmt"
-	"github.com/atotto/clipboard"
-	"github.com/schollz/peerdiscovery"
-	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -13,6 +10,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/atotto/clipboard"
+	"github.com/schollz/peerdiscovery"
+	log "github.com/sirupsen/logrus"
 )
 
 const peerDiscoveryPort = "30561"
