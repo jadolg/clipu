@@ -32,9 +32,7 @@ func captureClipboard(clipboardContents chan<- string) {
 	for {
 		currentContent, err := clipboard.ReadAll()
 		if err != nil {
-			log.WithError(err).Error("can't read clipboard content")
-			time.Sleep(2 * time.Second)
-			continue
+			log.WithError(err).Fatal("can't read clipboard content")
 		}
 		if previousContent != currentContent && lastReceived != currentContent {
 			log.Infof("got text '%s'", currentContent)
