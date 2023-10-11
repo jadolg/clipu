@@ -9,7 +9,6 @@ require (
 )
 
 require (
-	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
-	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
 )
