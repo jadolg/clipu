@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/atotto/clipboard"
 	"github.com/schollz/peerdiscovery"
 	log "github.com/sirupsen/logrus"
+	"golang.design/x/clipboard"
 )
 
 const peerDiscoveryPort = "30561"
@@ -30,12 +30,9 @@ var lastReceived = ""
 func captureClipboard(clipboardContents chan<- string) {
 	previousContent := ""
 	for {
-		currentContent, err := clipboard.ReadAll()
-		if err != nil {
-			log.WithError(err).Fatal("can't read clipboard content")
-		}
+		currentContent := string(clipboard.Read(clipboard.FmtText))
 		if previousContent != currentContent && lastReceived != currentContent {
-			log.Infof("got text '%s'", currentContent)
+			log.Debugf("got text '%s'", currentContent)
 			previousContent = currentContent
 			clipboardContents <- currentContent
 		}
@@ -83,11 +80,8 @@ func receive(w http.ResponseWriter, r *http.Request) {
 	text := fmt.Sprintf("%s", data)
 	if text != "" {
 		log.Infof("received %s", text)
-		err := clipboard.WriteAll(text)
+		clipboard.Write(clipboard.FmtText, []byte(text))
 		lastReceived = text
-		if err != nil {
-			log.WithError(err).Fatal("can't write into clipboard")
-		}
 	}
 	fmt.Fprintf(w, "received: '%s'\n", text)
 }
@@ -140,10 +134,11 @@ func sendText(text string, peer string) error {
 }
 
 func init() {
-	text, err := clipboard.ReadAll()
+	err := clipboard.Init()
 	if err != nil {
-		log.WithError(err).Fatal("can't read clipboard content")
+		log.WithError(err).Fatal("can't initialize clipboard")
 	}
+	text := string(clipboard.Read(clipboard.FmtText))
 	lastReceived = text
 
 	password = os.Getenv("CLIPU_PASSWORD")
