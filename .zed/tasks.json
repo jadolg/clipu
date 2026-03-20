@@ -1,0 +1,9 @@
+[
+  {
+    "label": "Run",
+    "command": "go run .",
+    "env": {
+      "CLIPU_PASSWORD": "123",
+    },
+  },
+]

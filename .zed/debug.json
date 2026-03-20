@@ -1,0 +1,12 @@
+[
+  {
+    "label": "Debug",
+    "adapter": "Delve",
+    "request": "launch",
+    "mode": "debug",
+    "program": ".",
+    "env": {
+      "CLIPU_PASSWORD": "123",
+    },
+  },
+]
