@@ -3,7 +3,7 @@ package main
 import (
 	"crypto/subtle"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -49,7 +49,7 @@ func startDiscovery() {
 		for _, d := range discoveries {
 			if authorized(d.Address) {
 				newPeers = append(newPeers, d.Address)
-				log.Debug("discovered '%s'", d.Address)
+				log.Debugf("discovered '%s'", d.Address)
 			}
 		}
 
@@ -76,7 +76,7 @@ func basicAuth(handler http.HandlerFunc, username, password, realm string) http.
 
 func receive(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	data, _ := ioutil.ReadAll(r.Body)
+	data, _ := io.ReadAll(r.Body)
 	text := fmt.Sprintf("%s", data)
 	if text != "" {
 		log.Infof("received %s", text)
