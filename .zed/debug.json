@@ -7,6 +7,9 @@
     "program": ".",
     "env": {
       "CLIPU_PASSWORD": "123",
+      "CLIPU_LOG_LEVEL": "debug",
+      "CLIPU_ALLOW_SELF": "1",
+      "CLIPU_PEER_LIMIT": "2",
     },
   },
 ]

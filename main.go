@@ -1,16 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"crypto/subtle"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
+	"filippo.io/age"
 	"github.com/schollz/peerdiscovery"
 	log "github.com/sirupsen/logrus"
 	"golang.design/x/clipboard"
@@ -26,6 +27,7 @@ var peerLimit = 1
 var peers = make([]string, 0)
 var mutex = &sync.Mutex{}
 var lastReceived = ""
+var allowSelf = false
 
 func captureClipboard(clipboardContents chan<- string) {
 	previousContent := ""
@@ -43,7 +45,7 @@ func captureClipboard(clipboardContents chan<- string) {
 func startDiscovery() {
 	for {
 		log.Debug("started peer discovery")
-		discoveries, _ := peerdiscovery.Discover(peerdiscovery.Settings{Limit: peerLimit, Port: peerDiscoveryPort})
+		discoveries, _ := peerdiscovery.Discover(peerdiscovery.Settings{Limit: peerLimit, Port: peerDiscoveryPort, AllowSelf: allowSelf})
 
 		newPeers := make([]string, 0)
 		for _, d := range discoveries {
@@ -74,10 +76,53 @@ func basicAuth(handler http.HandlerFunc, username, password, realm string) http.
 	}
 }
 
+func encryptText(text string) ([]byte, error) {
+	recipient, err := age.NewScryptRecipient(password)
+	if err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	w, err := age.Encrypt(&buf, recipient)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := io.WriteString(w, text); err != nil {
+		return nil, err
+	}
+	if err := w.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func decryptText(data []byte) (string, error) {
+	identity, err := age.NewScryptIdentity(password)
+	if err != nil {
+		return "", err
+	}
+	r, err := age.Decrypt(bytes.NewReader(data), identity)
+	if err != nil {
+		return "", err
+	}
+	out, err := io.ReadAll(r)
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
 func receive(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	data, _ := io.ReadAll(r.Body)
-	text := fmt.Sprintf("%s", data)
+	if len(data) == 0 {
+		return
+	}
+	text, err := decryptText(data)
+	if err != nil {
+		log.WithError(err).Error("failed to decrypt received data")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	if text != "" {
 		log.Infof("received %s", text)
 		clipboard.Write(clipboard.FmtText, []byte(text))
@@ -117,8 +162,12 @@ func startServer() {
 }
 
 func sendText(text string, peer string) error {
+	encrypted, err := encryptText(text)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt text: %w", err)
+	}
 	client := &http.Client{}
-	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d/receive", peer, serverPort), strings.NewReader(text))
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%d/receive", peer, serverPort), bytes.NewReader(encrypted))
 	if err != nil {
 		return err
 	}
@@ -134,6 +183,14 @@ func sendText(text string, peer string) error {
 }
 
 func init() {
+	if levelStr := os.Getenv("CLIPU_LOG_LEVEL"); levelStr != "" {
+		level, err := log.ParseLevel(levelStr)
+		if err != nil {
+			log.WithError(err).Fatalf("invalid log level %q", levelStr)
+		}
+		log.SetLevel(level)
+	}
+
 	err := clipboard.Init()
 	if err != nil {
 		log.WithError(err).Fatal("can't initialize clipboard")
@@ -145,6 +202,10 @@ func init() {
 	if password == "" {
 		log.Fatal("running on empty password! Set CLIPU_PASSWORD to start.")
 	}
+	if _, found := os.LookupEnv("CLIPU_ALLOW_SELF"); found {
+		allowSelf = true
+	}
+
 	peerLimitStr, found := os.LookupEnv("CLIPU_PEER_LIMIT")
 	if found {
 		peerLimitInt, err := strconv.Atoi(peerLimitStr)
