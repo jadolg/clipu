@@ -14,3 +14,4 @@ uninstall:
 
 clean:
 	rm -f $(BINARY)
+	rm -f __debug_bin*
