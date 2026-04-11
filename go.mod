@@ -1,6 +1,6 @@
 module github.com/jadolg/clipu
 
-go 1.25
+go 1.26.2
 
 require (
 	github.com/schollz/peerdiscovery v1.7.6
